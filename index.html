@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f2a44">
+  <meta name="robots" content="noindex, nofollow"> <!-- Demo: nicht in Suchmaschinen. Für den offiziellen Betrieb entfernen. -->
+  <title>Ostheim v.d.Rhön – Interaktive Karte</title>
+  <meta name="description" content="Interaktive Karte von Ostheim vor der Rhön: Sehenswürdigkeiten, Gastronomie, Wanderwege, Freizeit und Übernachten.">
+  <meta name="author" content="Jean-Michel Matysiak">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map" role="application" aria-label="Karte von Ostheim"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="titel">Ostheim entdecken</h1>
+      <p id="untertitel"></p>
+    </div>
+    <label class="search">
+      <span class="visually-hidden">Suche</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 0 1 6.3 12.9l5.4 5.4-1.4 1.4-5.4-5.4A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg>
+      <input id="suche" type="search" placeholder="Ort, Café, Weg suchen …" autocomplete="off">
+    </label>
+    <nav class="chips" id="chips" aria-label="Kategorien"></nav>
+  </header>
+
+  <div class="tools" role="toolbar" aria-label="Kartenwerkzeuge">
+    <button id="btn-3d" class="tool" aria-pressed="false" title="3D-Ansicht">3D</button>
+    <button id="btn-luftbild" class="tool" aria-pressed="false" title="Luftbild">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 8l11 6 9-4.9V17h2V8L12 2zm-7 11.2v4L12 21l7-3.8v-4L12 17l-7-3.8z"/></svg>
+    </button>
+    <button id="btn-tour" class="tool" title="Rundflug über die Highlights">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button id="btn-ort" class="tool" title="Mein Standort">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 3h-2.1A7 7 0 0 0 13 5.1V3h-2v2.1A7 7 0 0 0 5.1 11H3v2h2.1a7 7 0 0 0 5.9 5.9V21h2v-2.1a7 7 0 0 0 5.9-5.9H21v-2zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+    </button>
+    <button id="btn-home" class="tool" title="Zurück zur Altstadt">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
+    </button>
+  </div>
+
+  <aside class="sheet" id="sheet" aria-label="Orte und Wege">
+    <div class="sheet-handle" id="sheet-handle" aria-hidden="true"><span></span></div>
+    <div class="sheet-tabs" role="tablist">
+      <button role="tab" id="tab-orte" aria-selected="true">Orte <small id="anz-orte"></small></button>
+      <button role="tab" id="tab-wege" aria-selected="false">Wege <small id="anz-wege"></small></button>
+    </div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </aside>
+
+  <div class="tour-banner" id="tour-banner" hidden>
+    <span id="tour-text">Rundflug</span>
+    <button id="tour-stop">Beenden</button>
+  </div>
+
+  <div class="pano" id="pano" hidden>
+    <div id="pano-viewer"></div>
+    <button class="pano-close" id="pano-close" aria-label="Panorama schließen">✕</button>
+  </div>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <img id="lightbox-img" alt="">
+    <p id="lightbox-cap"></p>
+    <button class="pano-close" id="lightbox-close" aria-label="Bild schließen">✕</button>
+  </div>
+
+  <script src="vendor/maplibre/maplibre-gl.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

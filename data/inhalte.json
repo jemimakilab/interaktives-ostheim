@@ -1,0 +1,66 @@
+{
+  "_hinweis": "Zusatzinhalte je Ort. Schlüssel = id aus pois.geojson (oder Routen-id wie r6132505). Felder: geschichte (Text, Absätze mit Leerzeile), bilder [{src, titel, quelle}], panorama {src, titel} (equirectangular 360°-Foto), highlight (true = erscheint im Rundflug & oben in der Liste). Bilder in karte/media/ ablegen und relativ verlinken, z. B. media/kirchenburg-1.jpg.",
+
+  "kirchenburg-ostheim": {
+    "highlight": true,
+    "geschichte": "Die Kirchenburg entstand im 15. Jahrhundert (etwa 1400–1450) als befestigter Zufluchtsort der Bürger rund um die Stadtkirche. Sie gilt als größte und eine der am besten erhaltenen Kirchenburgen Deutschlands.\n\nZwei Ringmauern – die äußere bis etwa 5 m, die innere bis etwa 8 m hoch – fünf Türme und sechs Bastionen umschließen den Kirchhof. In den rund 66 Gaden mit ihren Gewölbekellern lagerten die Bürger Vorräte, um Belagerungen zu überstehen.\n\nSeit 2003 ist die Anlage als Denkmal von nationaler Bedeutung eingestuft.",
+    "bilder": [],
+    "panorama": null
+  },
+  "stadtkirche-st-michael": {
+    "geschichte": "Die evangelische Stadtkirche St. Michael wurde 1615–1619 im Renaissancestil im Zentrum der Kirchenburg errichtet und bietet über 1000 Plätze.\n\nBerühmt ist das bemalte Holzgewölbe, der „Ostheimer Himmel“. Dazu kommen eine Kanzel mit den vier Evangelisten, ein Taufstein von 1619 und eine Orgel von 1738. Bei der Führung „Die Kirche steht Kopf“ betrachtet man die Decke vom Liegestuhl aus."
+  },
+  "waagglockenturm": {
+    "geschichte": "Der rund 25 m hohe Waagglockenturm in der Südwestecke der Kirchenburg kann bestiegen werden – der Aufstieg ist im Eintritt des Kirchenburgenmuseums enthalten."
+  },
+  "burgruine-lichtenburg": {
+    "highlight": true,
+    "geschichte": "Die Lichtenburg thront auf dem Lichtenberg (482 m) rund 2 km nördlich der Stadt und wird 1156 erstmals erwähnt. Unter den Grafen von Henneberg ausgebaut, war sie ab dem 13. Jahrhundert Sitz des Amtes Lichtenberg.\n\nErhalten sind der etwa 37 m hohe Bergfried von 1315 mit Rundblick über Rhön, Thüringen und Hessen, das Renaissance-Haupttor, die Kemenate von 1604 sowie Reste von Palas, Kapelle und Ringmauern.\n\n1680 zog die Verwaltung nach Ostheim, die Burg verfiel. Turm (1994) und Mauern (2006) wurden saniert; derzeit laufen erneut Sanierungsarbeiten, der Zugang kann eingeschränkt sein."
+  },
+  "orgelbaumuseum-schloss-hanstein": {
+    "highlight": true,
+    "geschichte": "Das Orgelbaumuseum (gegründet 1993) im Hansteinschen Schloss zeigt 400 Jahre Orgelbau in Ostheim. Bei „klingenden Führungen“ werden die Instrumente vorgeführt, für Kinder gibt es Stationen mit dem Maskottchen „Orgelinchen“.\n\nOrgelbau und Orgelmusik sind seit 2017 immaterielles UNESCO-Kulturerbe."
+  },
+  "hansteinsches-schloss": {
+    "geschichte": "Adelssitz mit Ursprüngen im 15. Jahrhundert, um 1600 im Renaissancestil ausgebaut, mit gotischen Treppengiebeln und Fresken. Ursprünglich Sitz der Herren von der Tann, 1687–1754 im Besitz der Familie von Hanstein. Heute beherbergt es das Orgelbaumuseum."
+  },
+  "altensteinsches-schloss-muenz": {
+    "geschichte": "Der barocke Steinbau – früher „Untermarschalkscher Hof“ – entstand um die Mitte des 18. Jahrhunderts. 1621/22 wurde hier der „Ostheimer Batzen“ geprägt; die Prägung endete wegen zu geringen Silbergehalts. Daher der Name „Münz“. Heute Sitz der Sparkasse."
+  },
+  "oeptisches-schloss": {
+    "geschichte": "Reste eines Adelshofs aus dem 15./16. Jahrhundert in der Südwestecke der Altstadt (von Oeppen'scher Hof, später Rentamt). 1663 wurde er als Fürstensitz in Erwägung gezogen. Heute Arztpraxis."
+  },
+  "hessbergsches-schloesschen": {
+    "geschichte": "1595 erbauter Adelssitz mit Fachwerk-Obergeschoss. Heute befindet sich hier eine Apotheke."
+  },
+  "historisches-rathaus-mit-glockenspiel": {
+    "highlight": true,
+    "geschichte": "Nach der Verleihung der Marktrechte 1586 kaufte die Stadt ein „altes Haus“ und baute es zum Rathaus um. Unter der Freitreppe liegen die „Narrenhäuschen“, eine frühere Arrestzelle.\n\nDas Glockenspiel erklingt täglich um 11:01, 15:01 und 18:01 Uhr, im Advent mit eigenem Repertoire."
+  },
+  "torbruecke-und-brueckenmuehle": {
+    "geschichte": "Die vierbogige Steinbrücke über die Streu stammt von 1605. Die benachbarte Brückenmühle war eine von einst elf Mühlen an der Streu."
+  },
+  "ostheimer-warte": {
+    "highlight": true,
+    "geschichte": "Runder Wartturm aus dem 14. Jahrhundert auf 434 m, Teil der Landwehr des Fuldaer Abtes. Der etwa 8,2 m hohe Turm hat seinen Eingang in rund 3,9 m Höhe – erreichbar über eine Treppe. Rastplatz mit Bänken; die Aussicht ist inzwischen durch Bäume eingeschränkt. Der Kirschweg führt vorbei."
+  },
+  "huegelgraeberfeld-vor-dem-kleinen-lindenberg": {
+    "geschichte": "1989 beim Straßenbau entdeckt: 16 hallstattzeitliche Grabhügel wurden untersucht, Hügel Nr. 10 ist im Halbschnitt rekonstruiert. Die Funde befinden sich im Rhön-Museum Fladungen. Hasenweg und Tannenweg führen vorbei."
+  },
+  "sporckhoehe": {
+    "geschichte": "Gedenkstein auf dem Kleinen Lindenberg für den Wohltäter Kaspar Friedrich Sporck (1796–1883), 1951 erneuert."
+  },
+  "doppelte-eiche": {
+    "geschichte": "Etwa 300 Jahre alte Eiche mit geteiltem Stamm, eingetragenes Naturdenkmal mit Rundbank – eine Station der Extratour „Der Ostheimer“."
+  },
+  "naturschutzgebiet-weyhershauk": {
+    "highlight": true,
+    "geschichte": "Kalkmagerrasen und Trockenrasen mit Orchideen und seltenen Tagfaltern. Vom Gipfelkreuz (429 m) blickt man ins Streutal. Ein Naturlehrpfad mit Infotafeln führt durch das Gebiet."
+  },
+  "kirchenburgenmuseum-lebendige-kirchenburg": {
+    "geschichte": "Das 2007 eröffnete Museum in den Gaden am Eingangstor erzählt mit Film und multimedialem Fernrohr die Geschichte der Kirchenburgen. Zu sehen ist u. a. die „Schandgeige“. Betrieben von den Freunden der Kirchenburg e. V."
+  },
+  "bahnhof-ostheim-rhoen-zuegle": {
+    "geschichte": "Das historische „Rhön-Zügle“ verkehrt an rund 18 Fahrtagen im Jahr als Museumsbahn zwischen Fladungen, Ostheim und Mellrichstadt."
+  }
+}
