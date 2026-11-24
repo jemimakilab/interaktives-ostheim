@@ -43,8 +43,9 @@
     maxBounds: C.grenzen,
     maxPitch: 78,
     attributionControl: { compact: true, customAttribution: [
-      C.autor ? `Karte: <a href="${esc(C.autor.url)}" target="_blank" rel="noopener">${esc(C.autor.name)}</a>` : "",
-      '<a href="rechtliches.html">Impressum & Datenschutz</a>'].filter(Boolean) },
+      C.autor ? `Umsetzung: <a href="${esc(C.autor.url)}" target="_blank" rel="noopener">${esc(C.autor.name)}</a>` : "",
+      // '<a href="rechtliches.html">Impressum & Datenschutz</a>', // vorerst ausgeblendet – zum Aktivieren Kommentar entfernen
+    ].filter(Boolean) },
   });
   window.ostheimKarte = map; // für Einbettung/Debugging
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
@@ -256,8 +257,10 @@
       }
       if (!list.length) html = `<p class="empty">Keine Wege gefunden.</p>`;
     }
-    const autor = C.autor ? `Karte von <a href="${esc(C.autor.url)}" target="_blank" rel="noopener">${esc(C.autor.name)}</a> · ` : "";
-    body.innerHTML = html + `<p class="source" style="margin:18px 16px 4px">${autor}<a href="rechtliches.html">Impressum & Datenschutz</a> · Angaben ohne Gewähr</p>`;
+    const autor = C.autor ? `Umsetzung: <a href="${esc(C.autor.url)}" target="_blank" rel="noopener">${esc(C.autor.name)}</a> · ` : "";
+    // Impressum-Link vorerst ausgeblendet – zum Aktivieren die nächste Zeile statt der übernächsten nutzen:
+    // body.innerHTML = html + `<p class="source" style="margin:18px 16px 4px">${autor}<a href="rechtliches.html">Impressum & Datenschutz</a> · Angaben ohne Gewähr</p>`;
+    body.innerHTML = html + `<p class="source" style="margin:18px 16px 4px">${autor}Angaben ohne Gewähr</p>`;
   }
 
   $("#sheet-body").addEventListener("click", (e) => {
