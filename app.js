@@ -34,9 +34,24 @@
   };
 
   // ------------------------------------------------------------------ Karte
+  // Pfade absolut machen (MapLibre lädt Kacheln in Web-Workern, relative Pfade gehen dort nicht)
+  const basis = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
+  const abs = (u) => (/^https?:/.test(u) ? u : basis + u);
+
+  // Grundkarte aus der lokalen PMTiles-Datei mit dem Protomaps-Stil
+  const pmProtokoll = new pmtiles.Protocol();
+  maplibregl.addProtocol("pmtiles", pmProtokoll.tile);
+  const grundStil = {
+    version: 8,
+    glyphs: abs("fonts/{fontstack}/{range}.pbf"),
+    sprite: abs("sprites/" + (C.grundkarte.flavor || "light")),
+    sources: { protomaps: { type: "vector", url: "pmtiles://" + abs(C.grundkarte.pmtiles), attribution: C.grundkarte.attribution } },
+    layers: basemaps.layers("protomaps", basemaps.namedFlavor(C.grundkarte.flavor || "light"), { lang: "de" }),
+  };
+
   const map = new maplibregl.Map({
     container: "map",
-    style: C.stilKarte,
+    style: grundStil,
     center: C.start.center,
     zoom: C.start.zoom,
     pitch: state.is3d ? C.start.pitch : 0,
@@ -78,10 +93,8 @@
   }
 
   // Kachel-URLs absolut machen (MapLibre lädt Kacheln in Web-Workern, relative Pfade gehen dort nicht)
-  const basis = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
-  const abs = (u) => (/^https?:/.test(u) ? u : basis + u);
 
-  // Ersatz-Stil, falls OpenFreeMap nicht erreichbar ist (Blocker, Ausfall): Luftbild Bayern + lokale Schriften
+  // Ersatz-Stil, falls der Kartenstil nicht lädt: Luftbild Bayern + lokale Schriften
   let ersatz = false, stilGeladen = false, grundkarteWeg = false, kachelOk = false;
   function ersatzStil() {
     if (ersatz || stilGeladen) return; // nur wenn der Stil selbst gar nicht lädt
@@ -95,11 +108,11 @@
   function grundkarteAusgefallen() {
     if (grundkarteWeg || ersatz) return;
     grundkarteWeg = true;
-    for (const l of map.getStyle()?.layers || []) if (l.source === "openmaptiles") map.setLayoutProperty(l.id, "visibility", "none");
+    for (const l of map.getStyle()?.layers || []) if (l.source === "protomaps") map.setLayoutProperty(l.id, "visibility", "none");
     if (map.getLayer("luftbild")) { map.setLayoutProperty("luftbild", "visibility", "visible"); state.luftbild = true; $("#btn-luftbild").setAttribute("aria-pressed", true); }
     hinweis("Die Standard-Kartenansicht wird in diesem Browser blockiert (z. B. durch uBlock oder strengen Tracking-Schutz) – es wird das Luftbild angezeigt.");
   }
-  const istGrundkarte = (e) => e.sourceId === "openmaptiles" || /openfreemap/.test(String(e.error?.url || e.error?.message || ""));
+  const istGrundkarte = (e) => e.sourceId === "protomaps" || /pmtiles/.test(String(e.error?.url || e.error?.message || ""));
   map.on("error", (e) => {
     if (!stilGeladen && !e.sourceId && !istGrundkarte(e)) return ersatzStil();
     if (!stilGeladen && /styles\//.test(String(e.error?.url || e.error?.message || ""))) return ersatzStil();
@@ -108,7 +121,7 @@
   setTimeout(ersatzStil, 8000);
 
   // Kommen nach 10 s immer noch keine Grundkarten-Kacheln an → ebenfalls auf Luftbild umschalten
-  map.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) kachelOk = true; });
+  map.on("sourcedata", (e) => { if (e.sourceId === "protomaps" && e.tile) kachelOk = true; });
   setTimeout(() => { if (stilGeladen && !kachelOk) grundkarteAusgefallen(); }, 10000);
 
   // Aufbau schon nach dem Laden des Stils – nicht erst, wenn alle Kacheln da sind (sonst bleibt bei blockierten Kacheln alles leer)
@@ -122,14 +135,20 @@
     const layers = map.getStyle().layers;
     const firstSymbol = layers.find((l) => l.type === "symbol")?.id;
     // Eigene POIs ersetzen die allgemeinen POIs des Grundkartenstils
-    for (const l of layers) if (/^poi_r/.test(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
+    for (const l of layers) if (/^pois?$|^poi_/.test(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
+
+    // 3D-Gebäude aus den Gebäudehöhen von OpenStreetMap (nur sichtbar im 3D-Modus)
+    map.addLayer({ id: "building-3d", type: "fill-extrusion", source: "protomaps", "source-layer": "buildings", minzoom: 14,
+      layout: { visibility: state.is3d ? "visible" : "none" },
+      paint: { "fill-extrusion-color": "#e4ddd3", "fill-extrusion-opacity": 0.85,
+        "fill-extrusion-height": ["coalesce", ["get", "height"], 7], "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0] } }, firstSymbol);
 
     // Gelände + Schummerung
     const dem = { type: "raster-dem", tiles: C.gelaende.tiles.map(abs), encoding: C.gelaende.encoding, tileSize: 256,
       minzoom: C.gelaende.minzoom ?? 0, maxzoom: C.gelaende.maxzoom ?? 14, ...(C.gelaende.bounds && { bounds: C.gelaende.bounds }) };
     map.addSource("dem", { ...dem, attribution: C.gelaende.attribution });
-    map.addSource("dem-hill", dem);
-    map.addLayer({ id: "hillshade", type: "hillshade", source: "dem-hill", paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3b4a3a" } }, map.getLayer("building") ? "building" : undefined);
+    map.addSource("dem-hill", { ...dem, attribution: C.gelaende.attribution });
+    map.addLayer({ id: "hillshade", type: "hillshade", source: "dem-hill", paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3b4a3a" } }, map.getLayer("buildings") ? "buildings" : undefined);
 
     // Luftbild Bayern
     map.addSource("luftbild", { type: "raster", tiles: C.luftbild.tiles, tileSize: 256, attribution: C.luftbild.attribution });

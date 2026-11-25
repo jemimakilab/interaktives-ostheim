@@ -6,10 +6,14 @@ window.KARTE_CONFIG = {
   untertitel: "Kirchenburg · Lichtenburg · Rhön",
   start: { center: [10.2318, 50.4594], zoom: 14.2, pitch: 50, bearing: -20 },
   grenzen: [[9.95, 50.36], [10.45, 50.56]], // Karte lässt sich nicht weiter wegschieben
-
-  // Grundkarte: OpenFreeMap (OSM-Daten, kostenlos, ohne API-Schlüssel).
   // Für vollständige Unabhängigkeit später selbst hosten (Protomaps/PMTiles), siehe README.
-  stilKarte: "https://tiles.openfreemap.org/styles/liberty",
+  // Grundkarte: OpenStreetMap-Ausschnitt der Region als eine Datei (Protomaps/PMTiles) – liegt auf der eigenen Seite,
+  // keine fremden Server, keine Probleme mit Werbe-/Tracking-Blockern. Neu erzeugen: siehe README („Grundkarte aktualisieren“).
+  grundkarte: {
+    pmtiles: "tiles/ostheim.pmtiles",
+    flavor: "light",
+    attribution: '<a href="https://protomaps.com" target="_blank" rel="noopener">Protomaps</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+  },
 
   // Amtliches Luftbild Bayern (Open Data, CC BY 4.0)
   luftbild: {
