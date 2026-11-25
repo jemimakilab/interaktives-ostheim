@@ -125,11 +125,12 @@
     if (!stilGeladen && /styles\//.test(String(e.error?.url || e.error?.message || ""))) return ersatzStil();
     if (istGrundkarte(e) && !kachelOk) grundkarteAusgefallen();
   });
-  setTimeout(ersatzStil, 8000);
+  setTimeout(() => { if (document.visibilityState === "visible") ersatzStil(); }, 8000);
 
   // Kommen nach 10 s immer noch keine Grundkarten-Kacheln an → ebenfalls auf Luftbild umschalten
   map.on("sourcedata", (e) => { if (e.sourceId === "protomaps" && e.tile) kachelOk = true; });
-  setTimeout(() => { if (stilGeladen && !kachelOk) grundkarteAusgefallen(); }, 10000);
+  // (Kein Zeit-Rückfall mehr: die Grundkarte liegt auf der eigenen Seite. Ein Hintergrund-Tab zeichnet nicht,
+  //  das wurde früher fälschlich als Ausfall gewertet und schaltete das Luftbild ein.)
 
   // Aufbau schon nach dem Laden des Stils – nicht erst, wenn alle Kacheln da sind (sonst bleibt bei blockierten Kacheln alles leer)
   map.once("style.load", async () => {
