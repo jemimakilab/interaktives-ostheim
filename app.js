@@ -234,8 +234,8 @@
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const poiMatches = (f) => {
     const p = f.properties;
-    if (state.suche) return norm([p.name, p.beschreibung, p.adresse, p.ort, C.kategorien[p.kategorie]?.label].join(" ")).includes(state.suche);
-    return state.aktiv.has(p.kategorie);
+    if (state.suche) return norm([p.name, p.beschreibung, p.adresse, p.ort, C.kategorien[p.kategorie]?.label, C.kategorien[p.kategorie2]?.label].join(" ")).includes(state.suche);
+    return state.aktiv.has(p.kategorie) || (!!p.kategorie2 && state.aktiv.has(p.kategorie2)); // z. B. Rathaus: Sehenswert + Öffentlich
   };
   const routeMatches = (f) => !state.suche || norm([f.properties.name, f.properties.text, f.properties.art].join(" ")).includes(state.suche);
 
@@ -316,7 +316,9 @@
       const hl = list.filter((f) => state.inhalte[f.id]?.highlight);
       if (hl.length && !state.suche) html += `<div class="list-section">Highlights</div>` + hl.map(poiItem).join("");
       for (const k of katOrder) {
-        const items = list.filter((f) => f.properties.kategorie === k).sort((a, b) => a.properties.name.localeCompare(b.properties.name, "de"));
+        // Gruppe: Hauptkategorie – außer sie ist ausgeblendet und der Ort nur über die Zweitkategorie sichtbar
+        const gruppe = (p) => (state.suche || state.aktiv.has(p.kategorie) || !p.kategorie2 ? p.kategorie : p.kategorie2);
+        const items = list.filter((f) => gruppe(f.properties) === k).sort((a, b) => a.properties.name.localeCompare(b.properties.name, "de"));
         if (items.length) html += `<div class="list-section">${C.kategorien[k].icon} ${esc(C.kategorien[k].label)}</div>` + items.map(poiItem).join("");
       }
       if (!list.length) html = `<p class="empty">Keine Orte gefunden. Kategorien oben antippen, um mehr anzuzeigen.</p>`;
@@ -411,7 +413,7 @@
     bannerAktualisieren();
   }
 
-  function selectPoi(id, { fly = true } = {}) {
+  function selectPoi(id, { fly = true, sheet = true } = {}) {
     stopVerschieben();
     const f = state.pois.find((x) => x.id === id);
     if (!f) return;
@@ -426,6 +428,7 @@
       ${heroHtml(extra.bilder)}
       <h2>${esc(p.name)}</h2>
       <div class="badges"><span class="badge" style="background:${k.farbe}22">${k.icon || ""} ${esc(k.label || p.kategorie)}</span>
+        ${p.kategorie2 && C.kategorien[p.kategorie2] ? `<span class="badge" style="background:${C.kategorien[p.kategorie2].farbe}22">${C.kategorien[p.kategorie2].icon} ${esc(C.kategorien[p.kategorie2].label)}</span>` : ""}
         ${p.ort && p.ort !== "Ostheim" ? `<span class="badge">📍 ${esc(p.ort)}</span>` : ""}
         ${p.status !== "aktiv" ? `<span class="badge warn">⚠ ${esc(p.status)}</span>` : ""}
         ${p.lage === "ungefähr" ? `<span class="badge warn" title="Die genaue Hausnummer ist nicht bekannt – der Punkt liegt nur ungefähr richtig">📍 Position ungefähr</span>` : ""}</div>
@@ -450,7 +453,7 @@
     </article>`;
     $("#sheet-body").scrollTop = 0;
     bindDetail(extra, f);
-    setSheet("half");
+    if (sheet) setSheet("half");
     if (fly) flyTo([lon, lat], Math.max(map.getZoom(), 16.2));
     setHash("ort=" + id);
   }
@@ -554,7 +557,7 @@
   let fahrtId = 0;
   const hoehe = (ll) => (state.is3d ? map.queryTerrainElevation(ll) ?? map.getCenterElevation() : 0);
   const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-  function fahrt({ center, zoom = map.getZoom(), pitch = map.getPitch(), bearing = map.getBearing(), pad = padding(), duration = 1600, easing = easeInOut }) {
+  function fahrt({ center, zoom = map.getZoom(), pitch = map.getPitch(), bearing = map.getBearing(), pad = padding(), duration = 1600, easing = easeInOut, maxDip = 3 }) {
     const id = ++fahrtId;
     const c0 = map.getCenter(), z0 = map.getZoom(), p0 = map.getPitch(), b0 = map.getBearing(), e0 = map.getCenterElevation();
     const pad0 = map.getPadding();
@@ -563,7 +566,7 @@
     let db = ((bearing - b0 + 540) % 360) - 180;
     // Bei weiten Sprüngen kurz herauszoomen (Flugkurve)
     const px = map.project(c1).dist(map.project(c0));
-    const dip = Math.max(0, Math.min(3, Math.log2(px / (0.6 * Math.min(innerWidth, innerHeight)))));
+    const dip = Math.max(0, Math.min(maxDip, Math.log2(px / (0.6 * Math.min(innerWidth, innerHeight)))));
     const lerp = (a, b, t) => a + (b - a) * t;
     if (reduceMotion || duration <= 0) {
       map.jumpTo({ center: c1, zoom, pitch, bearing, elevation: e1, padding: pad });
@@ -656,22 +659,43 @@
 
   // ------------------------------------------------------------------ Rundflug
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Beim Rundflug nur das aktuelle Highlight zeigen – alle anderen Marker und Wege ausblenden
+  const TOUR_AUS = ["poi", "cluster", "cluster-count", "routes-casing", "routes-line", "routes-hit", "routes-sel"];
+  function nurHighlight(an) {
+    for (const id of TOUR_AUS) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", an ? "none" : "visible");
+    if (!an) applyFilter(); // stellt die Sichtbarkeit der Wege laut Filter wieder her
+  }
   async function startTour() {
     const stops = state.pois.filter((f) => state.inhalte[f.id]?.highlight);
     if (!stops.length) return;
-    const tour = (state.tour = { aktiv: true });
-    if (state.luftbild) setLuftbild(false);
-    if (!state.is3d) setTerrain(true);
+    const tour = (state.tour = { aktiv: true, vorher: { luftbild: state.luftbild, is3d: state.is3d } });
     $("#tour-banner").hidden = false;
+    $("#tour-text").textContent = "Rundflug wird vorbereitet …";
     document.body.classList.add("touring");
     setSheet("peek");
+    // Vorbereitung hinter einer kurzen Abblendung: Umschalten auf 3D + Aufbau, erst danach losfliegen (sonst ruckelt es)
+    document.body.classList.add("tour-vorbereitung");
+    await sleep(350);
+    nurHighlight(true);
+    if (state.luftbild) setLuftbild(false);
+    if (!state.is3d) setTerrain(true);
+    if (map.getLayer("hillshade")) map.setLayoutProperty("hillshade", "visibility", "none"); // im 3D-Flug unnötig, spart Rechenleistung
+    tour.pixel = map.getPixelRatio();
+    if (tour.pixel > 1.5) map.setPixelRatio(1.5); // sehr hochauflösende Bildschirme: flüssiger fliegen
+    const f0 = stops[0];
+    map.jumpTo({ center: f0.geometry.coordinates, zoom: 15.2, pitch: 55, bearing: map.getBearing(), padding: isDesktop() ? { top: 60, bottom: 0, left: linksFrei() - 12, right: 60 } : { top: 120, bottom: 140, left: 0, right: 0 } });
+    await Promise.race([new Promise((r) => map.once("idle", r)), sleep(3500)]);
+    document.body.classList.remove("tour-vorbereitung");
+    if (!tour.aktiv) return;
     let bearing = map.getBearing();
     for (let i = 0; i < stops.length && tour.aktiv; i++) {
       const f = stops[i];
       $("#tour-text").textContent = `${i + 1}/${stops.length} · ${f.properties.name}`;
+      // Infos zum angeflogenen Ort links in der Liste anzeigen (am Handy im Panel unten, ohne es aufzuziehen)
+      selectPoi(f.id, { fly: false, sheet: isDesktop() });
       bearing += 70;
       const pad = isDesktop() ? { top: 60, bottom: 0, left: linksFrei() - 12, right: 60 } : { top: 120, bottom: 140, left: 0, right: 0 };
-      if (!(await fahrt({ center: f.geometry.coordinates, zoom: 16.4, pitch: 64, bearing, pad, duration: 5500 }))) break;
+      if (!(await fahrt({ center: f.geometry.coordinates, zoom: 16.4, pitch: 64, bearing, pad, duration: 5500, maxDip: 1.2 }))) break;
       if (!tour.aktiv) break;
       map.getSource("sel").setData({ type: "FeatureCollection", features: [f] });
       if (!(await fahrt({ bearing: bearing + 40, pad, duration: 4500, easing: (t) => t }))) break;
@@ -680,11 +704,18 @@
   }
   function stopTour() {
     if (!state.tour) return;
+    const tour = state.tour;
     state.tour.aktiv = false;
     stopFahrt();
     state.tour = null;
     $("#tour-banner").hidden = true;
-    document.body.classList.remove("touring");
+    document.body.classList.remove("touring", "tour-vorbereitung");
+    nurHighlight(false);
+    if (map.getLayer("hillshade")) map.setLayoutProperty("hillshade", "visibility", "visible");
+    if (tour.pixel) map.setPixelRatio(tour.pixel);
+    // vorherige Ansicht wiederherstellen (z. B. Luftbild)
+    if (tour.vorher && !tour.vorher.is3d) { setTerrain(false); map.easeTo({ pitch: 0, bearing: 0, duration: 800 }); }
+    if (tour.vorher?.luftbild) setLuftbild(true);
     if (!state.auswahl) map.getSource("sel")?.setData({ type: "FeatureCollection", features: [] });
   }
   $("#btn-tour").onclick = () => (state.tour ? stopTour() : startTour());
