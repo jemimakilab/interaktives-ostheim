@@ -48,7 +48,8 @@ window.KARTE_CONFIG = {
     "Dienstleistung":      { label: "Dienstleister", icon: "💼", farbe: "#6f6f6f" },
     "Handwerk & Gewerbe":  { label: "Handwerk & Firmen", icon: "🔧", farbe: "#8a6d3b" },
     "Öffentlich":          { label: "Öffentlich",   icon: "🏛️", farbe: "#525e8a" },
-    "Praktisches":         { label: "Parken, WC & Co.", icon: "🅿️", farbe: "#393939" },
+    "Toiletten":           { label: "Toiletten",    icon: "🚻", farbe: "#0f62fe" },
+    "Praktisches":         { label: "Parken & Co.", icon: "🅿️", farbe: "#393939" },
     "Freizeit":            { label: "Freizeit",     icon: "🎯", farbe: "#0072c3" },
     "Spielplatz":          { label: "Spielplatz",   icon: "🛝", farbe: "#33b1ff" },
     "Camping/Wohnmobil":   { label: "Camping",      icon: "🚐", farbe: "#005d5d" },
@@ -56,5 +57,5 @@ window.KARTE_CONFIG = {
   },
   startLuftbild: false, // true = Luftbild als Startansicht (lädt dann beim Öffnen von geoservices.bayern.de); false = Straßenkarte, Luftbild nur per Knopf
   // Beim Start ausgeblendete Kategorien (über die Filterleiste einblendbar)
-  startAusgeblendet: ["Öffentlich", "Praktisches"]
+  startAusgeblendet: ["Praktisches"]
 };

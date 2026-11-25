@@ -19,6 +19,8 @@
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   if (params.get("embed")) document.body.classList.add("embed");
+  // Bearbeitungsmodus (?bearbeiten=1): Punkte verschieben und Korrekturen als Datei herunterladen
+  const bearbeiten = !!params.get("bearbeiten");
   $("#titel").textContent = C.titel;
   $("#untertitel").textContent = C.untertitel;
   document.title = C.titel;
@@ -76,6 +78,7 @@
     fetch("data/pois.geojson").then((r) => r.json()),
     fetch("data/routes.geojson").then((r) => r.json()),
     fetch("data/inhalte.json").then((r) => r.json()).catch(() => ({})),
+    fetch("data/korrekturen.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
   ]);
 
   // Marker-Bild je Kategorie (Kreis + Emoji), per Canvas erzeugt
@@ -129,8 +132,14 @@
   // Aufbau schon nach dem Laden des Stils – nicht erst, wenn alle Kacheln da sind (sonst bleibt bei blockierten Kacheln alles leer)
   map.once("style.load", async () => {
     stilGeladen = true;
-    const [pois, routes, inhalte] = await daten;
+    const [pois, routes, inhalte, korrekturen] = await daten;
     state.pois = pois.features;
+    // Handkorrigierte Positionen (data/korrekturen.json) und – im Bearbeitungsmodus – noch nicht gespeicherte eigene
+    state.korrekturen = {};
+    for (const [id, c] of Object.entries({ ...korrekturen, ...(bearbeiten ? lokaleKorrekturen() : {}) }))
+      if (Array.isArray(c) && c.length === 2) state.korrekturen[id] = c;
+    for (const f of state.pois) if (state.korrekturen[f.id]) f.geometry.coordinates = state.korrekturen[f.id];
+    if (bearbeiten) bearbeitenStarten();
     state.routes = routes.features;
     state.inhalte = inhalte;
 
@@ -179,7 +188,7 @@
       p._img = "img-" + p.kategorie + "-" + (p.icon || k.icon);
       if (!map.hasImage(p._img)) map.addImage(p._img, markerImage(k.farbe, p.icon || k.icon), { pixelRatio: 2 });
     }
-    map.addSource("pois", { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 42, clusterMaxZoom: 14 });
+    map.addSource("pois", { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: !bearbeiten, clusterRadius: 42, clusterMaxZoom: 14 });
     map.addLayer({ id: "cluster", type: "circle", source: "pois", filter: ["has", "point_count"],
       paint: { "circle-color": "#1f2a44", "circle-radius": ["step", ["get", "point_count"], 17, 10, 21, 25, 26],
         "circle-stroke-width": 3, "circle-stroke-color": "#fff", "circle-opacity": 0.92 } });
@@ -352,7 +361,62 @@
       ${bilder.length > 1 ? `<span class="count">${bilder.length} Bilder</span>` : ""}</div>`;
   }
 
+  // ------------------------------------------------------------------ Bearbeitungsmodus
+  const LS_KEY = "ostheim-korrekturen";
+  function lokaleKorrekturen() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } }
+  function lokalSpeichern(id, c) {
+    const k = lokaleKorrekturen(); k[id] = c;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(k)); } catch { /* Browser ohne Speicher: bleibt bis zum Neuladen */ }
+  }
+  let schiebeMarker = null;
+  function startVerschieben(f) {
+    stopVerschieben();
+    const k = C.kategorien[f.properties.kategorie] || {};
+    const el = document.createElement("div");
+    el.className = "schiebe-marker"; el.textContent = f.properties.icon || k.icon || "📍";
+    el.title = "Ziehen, um die Position zu ändern";
+    schiebeMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(f.geometry.coordinates).addTo(map);
+    map.getSource("sel")?.setData({ type: "FeatureCollection", features: [] });
+    toast("Punkt an die richtige Stelle ziehen");
+    schiebeMarker.on("dragend", () => {
+      const ll = schiebeMarker.getLngLat();
+      const c = [+ll.lng.toFixed(6), +ll.lat.toFixed(6)];
+      f.geometry.coordinates = c;
+      state.korrekturen[f.id] = c;
+      lokalSpeichern(f.id, c);
+      applyFilter();
+      bannerAktualisieren();
+      toast("Neue Position gemerkt ✓");
+    });
+  }
+  function stopVerschieben() { schiebeMarker?.remove(); schiebeMarker = null; }
+  function bannerAktualisieren() {
+    const n = Object.keys(lokaleKorrekturen()).length;
+    $("#edit-anzahl").textContent = n ? `${n} neue Korrektur${n === 1 ? "" : "en"}` : "noch keine neuen Korrekturen";
+  }
+  function bearbeitenStarten() {
+    const b = document.createElement("div");
+    b.className = "edit-banner";
+    b.innerHTML = `<b>✏️ Bearbeiten</b><span id="edit-anzahl"></span>
+      <button id="edit-download">Korrekturen herunterladen</button><button id="edit-reset">Verwerfen</button>`;
+    document.body.appendChild(b);
+    bannerAktualisieren();
+    $("#edit-download").onclick = () => {
+      const daten = Object.fromEntries(Object.entries(state.korrekturen).sort(([a], [b]) => a.localeCompare(b)));
+      const url = URL.createObjectURL(new Blob([JSON.stringify(daten, null, 1)], { type: "application/json" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: "korrekturen.json" });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    };
+    $("#edit-reset").onclick = () => {
+      if (!confirm("Alle noch nicht gespeicherten Korrekturen verwerfen?")) return;
+      try { localStorage.removeItem(LS_KEY); } catch { /* egal */ }
+      location.reload();
+    };
+  }
+
   function selectPoi(id, { fly = true } = {}) {
+    stopVerschieben();
     const f = state.pois.find((x) => x.id === id);
     if (!f) return;
     const p = f.properties, k = C.kategorien[p.kategorie] || {}, extra = state.inhalte[id] || {};
@@ -375,6 +439,7 @@
         ${action(navUrl(lat, lon), "Route", "nav", !tel && !p.web, 'target="_blank" rel="noopener"')}
         ${extra.panorama?.src ? `<button class="action" data-pano>${icons.pano}360°</button>` : ""}
         <button class="action" data-share>${icons.share}Teilen</button>
+        ${bearbeiten ? `<button class="action primary" data-verschieben>📍<br>Position ändern</button>` : ""}
       </div>
       <div class="facts">
         ${p.adresse ? `<div class="fact"><span class="k">📍</span><span>${esc(p.adresse)}${p.ort && p.ort !== "Ostheim" ? ", " + esc(p.ort) : ""}<br><small>97645 Ostheim v.d.Rhön</small></span></div>` : ""}
@@ -439,6 +504,8 @@
     };
     const pano = body.querySelector("[data-pano]");
     if (pano) pano.onclick = () => openPano(extra.panorama);
+    const schieben = body.querySelector("[data-verschieben]");
+    if (schieben) schieben.onclick = () => startVerschieben(f);
     const fit = body.querySelector("[data-fit]");
     if (fit) fit.onclick = () => fitRoute(f);
     body.querySelectorAll("[data-bild]").forEach((img) => (img.onclick = () => {
@@ -455,6 +522,7 @@
     if (map.getLayer("routes-sel")) map.setFilter("routes-sel", ["==", ["get", "id"], ""]);
   }
   function closeDetail(render = true) {
+    stopVerschieben();
     clearRouteSel();
     state.auswahl = null;
     map.getSource("sel")?.setData({ type: "FeatureCollection", features: [] });
