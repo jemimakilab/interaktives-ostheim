@@ -138,7 +138,7 @@
     state.korrekturen = {};
     for (const [id, c] of Object.entries({ ...korrekturen, ...(bearbeiten ? lokaleKorrekturen() : {}) }))
       if (Array.isArray(c) && c.length === 2) state.korrekturen[id] = c;
-    for (const f of state.pois) if (state.korrekturen[f.id]) f.geometry.coordinates = state.korrekturen[f.id];
+    for (const f of state.pois) if (state.korrekturen[f.id]) { f.geometry.coordinates = state.korrekturen[f.id]; f.properties.lage = ""; }
     if (bearbeiten) bearbeitenStarten();
     state.routes = routes.features;
     state.inhalte = inhalte;
@@ -382,6 +382,7 @@
       const ll = schiebeMarker.getLngLat();
       const c = [+ll.lng.toFixed(6), +ll.lat.toFixed(6)];
       f.geometry.coordinates = c;
+      f.properties.lage = "";
       state.korrekturen[f.id] = c;
       lokalSpeichern(f.id, c);
       applyFilter();
@@ -431,7 +432,8 @@
       <h2>${esc(p.name)}</h2>
       <div class="badges"><span class="badge" style="background:${k.farbe}22">${k.icon || ""} ${esc(k.label || p.kategorie)}</span>
         ${p.ort && p.ort !== "Ostheim" ? `<span class="badge">📍 ${esc(p.ort)}</span>` : ""}
-        ${p.status !== "aktiv" ? `<span class="badge warn">⚠ ${esc(p.status)}</span>` : ""}</div>
+        ${p.status !== "aktiv" ? `<span class="badge warn">⚠ ${esc(p.status)}</span>` : ""}
+        ${p.lage === "ungefähr" ? `<span class="badge warn" title="Die genaue Hausnummer ist nicht bekannt – der Punkt liegt nur ungefähr richtig">📍 Position ungefähr</span>` : ""}</div>
       ${p.beschreibung ? `<p class="lead">${esc(p.beschreibung)}</p>` : ""}
       <div class="actions">
         ${tel ? action("tel:" + tel, "Anrufen", "tel", true) : ""}
