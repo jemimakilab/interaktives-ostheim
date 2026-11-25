@@ -105,10 +105,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
     border-radius: var(--radius); transform: none !important;
   }
   .sheet-handle { display: none; }
-  .topbar { left: 424px; }
-  .chips { margin: 0; padding-left: 2px; }
+  .sheet { transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .topbar { left: 424px; transition: left .3s; }
+  /* Filter am PC in mehreren Reihen statt abgeschnitten; rechts Platz für die Werkzeugleiste */
+  .chips { margin: 0; padding: 2px 2px 8px; flex-wrap: wrap; overflow: visible; max-width: calc(100vw - 424px - 84px); }
   .tools { top: 186px; }
+  /* Liste einklappbar */
+  .sheet-tabs .liste-zu-btn { display: grid; place-items: center; flex: 0 0 44px; font-size: 22px; padding: 0; }
+  .liste-auf-btn { display: none; }
+  body.liste-zu .sheet { transform: translateX(calc(-100% - 24px)) !important; }
+  body.liste-zu .topbar { left: 140px; }
+  body.liste-zu .chips { max-width: calc(100vw - 140px - 84px); }
+  body.liste-zu .liste-auf-btn {
+    display: block; position: fixed; top: 12px; left: 12px; z-index: 6; border: 0; border-radius: 14px;
+    background: var(--accent); color: #fff; font-weight: 700; padding: 12px 16px; box-shadow: var(--shadow);
+  }
 }
+.liste-zu-btn { display: none; }
+@media (prefers-color-scheme: dark) { body.liste-zu .liste-auf-btn { color: #10141d; } }
 
 /* ---------- Listen ---------- */
 .list-section { padding: 10px 16px 2px; font-size: 12px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .6px; }

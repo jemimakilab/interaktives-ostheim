@@ -51,5 +51,5 @@ window.KARTE_CONFIG = {
     "Übernachtung":        { label: "Übernachten",  icon: "🛏️", farbe: "#9f1853" }
   },
   // Beim Start ausgeblendete Kategorien (über die Filterleiste einblendbar)
-  startAusgeblendet: ["Übernachtung", "Spielplatz", "Vereinsheim", "Dienstleistung", "Handwerk & Gewerbe", "Öffentlich", "Praktisches"]
+  startAusgeblendet: ["Öffentlich", "Praktisches"]
 };

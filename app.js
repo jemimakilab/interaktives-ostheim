@@ -441,9 +441,19 @@
     if (render) renderList();
   }
 
+  // ------------------------------------------------------------------ Liste am PC ein-/ausklappen
+  const linksFrei = () => (document.body.classList.contains("liste-zu") ? 20 : 424);
+  function setListe(offen) {
+    document.body.classList.toggle("liste-zu", !offen);
+    try { localStorage.setItem("ostheim-liste", offen ? "auf" : "zu"); } catch { /* egal */ }
+  }
+  try { if (localStorage.getItem("ostheim-liste") === "zu") document.body.classList.add("liste-zu"); } catch { /* egal */ }
+  $("#liste-zu").onclick = () => setListe(false);
+  $("#liste-auf").onclick = () => setListe(true);
+
   // ------------------------------------------------------------------ Kamera
   function padding() {
-    if (isDesktop()) return { left: 424, top: 80, right: 70, bottom: 30 };
+    if (isDesktop()) return { left: linksFrei(), top: 80, right: 70, bottom: 30 };
     const sheetH = innerHeight * 0.5;
     return { top: 170, bottom: sheetH, left: 20, right: 70 };
   }
@@ -543,7 +553,7 @@
   $("#btn-ort").onclick = () => geo.trigger();
   $("#btn-home").onclick = () => {
     stopTour();
-    fahrt({ center: C.start.center, zoom: C.start.zoom, pitch: state.is3d ? C.start.pitch : 0, bearing: state.is3d ? C.start.bearing : 0, pad: { top: 0, bottom: 0, left: isDesktop() ? 412 : 0, right: 0 }, duration: 1800 });
+    fahrt({ center: C.start.center, zoom: C.start.zoom, pitch: state.is3d ? C.start.pitch : 0, bearing: state.is3d ? C.start.bearing : 0, pad: { top: 0, bottom: 0, left: isDesktop() ? linksFrei() - 12 : 0, right: 0 }, duration: 1800 });
   };
 
   // ------------------------------------------------------------------ Rundflug
@@ -561,7 +571,7 @@
       const f = stops[i];
       $("#tour-text").textContent = `${i + 1}/${stops.length} · ${f.properties.name}`;
       bearing += 70;
-      const pad = isDesktop() ? { top: 60, bottom: 0, left: 412, right: 60 } : { top: 120, bottom: 140, left: 0, right: 0 };
+      const pad = isDesktop() ? { top: 60, bottom: 0, left: linksFrei() - 12, right: 60 } : { top: 120, bottom: 140, left: 0, right: 0 };
       if (!(await fahrt({ center: f.geometry.coordinates, zoom: 16.4, pitch: 64, bearing, pad, duration: 5500 }))) break;
       if (!tour.aktiv) break;
       map.getSource("sel").setData({ type: "FeatureCollection", features: [f] });
@@ -611,7 +621,7 @@
     return { peek: h - peek, half: h - innerHeight * 0.5, full: 0 }[s];
   }
   function setSheet(s) {
-    if (isDesktop()) return;
+    if (isDesktop()) { if (s !== "peek" && document.body.classList.contains("liste-zu")) setListe(true); return; }
     sheetState = s;
     sheet.style.transform = `translateY(${sheetY(s)}px)`;
   }
