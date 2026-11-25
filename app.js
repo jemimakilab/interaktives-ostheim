@@ -76,7 +76,33 @@
     return g.getImageData(0, 0, size, size);
   }
 
-  map.on("load", async () => {
+  // Kachel-URLs absolut machen (MapLibre lädt Kacheln in Web-Workern, relative Pfade gehen dort nicht)
+  const basis = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
+  const abs = (u) => (/^https?:/.test(u) ? u : basis + u);
+
+  // Ersatz-Stil, falls OpenFreeMap nicht erreichbar ist (Blocker, Ausfall): Luftbild Bayern + lokale Schriften
+  let ersatz = false;
+  function ersatzStil() {
+    if (ersatz || map.isStyleLoaded()) return;
+    ersatz = true;
+    map.setStyle({ version: 8, glyphs: abs("fonts/{fontstack}/{range}.pbf"), sources: {},
+      layers: [{ id: "background", type: "background", paint: { "background-color": "#e8ecdf" } }] });
+    hinweis("Die Standard-Kartenansicht ist gerade nicht erreichbar (evtl. durch einen Werbe-/Tracking-Blocker) – es wird das Luftbild angezeigt.");
+  }
+  map.on("error", (e) => { if (!map.isStyleLoaded() && !e.sourceId) ersatzStil(); });
+  setTimeout(ersatzStil, 8000);
+
+  // Kachelfehler der Grundkarte erkennen (z. B. Werbe-/Tracking-Blocker) und Hinweis zeigen
+  let kachelFehler = 0, kachelOk = false;
+  map.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) kachelOk = true; });
+  map.on("error", (e) => {
+    if (kachelOk || !(e.sourceId === "openmaptiles" || /openfreemap/.test(e.error?.url || e.error?.message || ""))) return;
+    if (!ersatz && ++kachelFehler === 3) hinweis("Der Kartenhintergrund konnte nicht geladen werden. Vermutlich blockiert ein Werbe- oder Tracking-Blocker „tiles.openfreemap.org“ – bitte für diese Seite deaktivieren.");
+  });
+  setTimeout(() => { if (!ersatz && !kachelOk && !map.loaded()) hinweis("Der Kartenhintergrund lädt nicht. Bitte Internetverbindung prüfen oder Werbe-/Tracking-Blocker für diese Seite deaktivieren."); }, 12000);
+
+  // Aufbau schon nach dem Laden des Stils – nicht erst, wenn alle Kacheln da sind (sonst bleibt bei blockierten Kacheln alles leer)
+  map.once("style.load", async () => {
     const [pois, routes, inhalte] = await daten;
     state.pois = pois.features;
     state.routes = routes.features;
@@ -88,18 +114,16 @@
     for (const l of layers) if (/^poi_r/.test(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
 
     // Gelände + Schummerung
-    // Kachel-URLs absolut machen (MapLibre lädt Kacheln in Web-Workern, relative Pfade gehen dort nicht)
-    const basis = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, "");
-    const abs = (u) => (/^https?:/.test(u) ? u : basis + u);
     const dem = { type: "raster-dem", tiles: C.gelaende.tiles.map(abs), encoding: C.gelaende.encoding, tileSize: 256,
       minzoom: C.gelaende.minzoom ?? 0, maxzoom: C.gelaende.maxzoom ?? 14, ...(C.gelaende.bounds && { bounds: C.gelaende.bounds }) };
     map.addSource("dem", { ...dem, attribution: C.gelaende.attribution });
     map.addSource("dem-hill", dem);
-    map.addLayer({ id: "hillshade", type: "hillshade", source: "dem-hill", paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3b4a3a" } }, "building");
+    map.addLayer({ id: "hillshade", type: "hillshade", source: "dem-hill", paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3b4a3a" } }, map.getLayer("building") ? "building" : undefined);
 
     // Luftbild Bayern
     map.addSource("luftbild", { type: "raster", tiles: C.luftbild.tiles, tileSize: 256, attribution: C.luftbild.attribution });
-    map.addLayer({ id: "luftbild", type: "raster", source: "luftbild", layout: { visibility: "none" } }, firstSymbol);
+    map.addLayer({ id: "luftbild", type: "raster", source: "luftbild", layout: { visibility: ersatz ? "visible" : "none" } }, firstSymbol);
+    if (ersatz) { state.luftbild = true; $("#btn-luftbild").setAttribute("aria-pressed", true); }
 
     // Wege
     map.addSource("routes", { type: "geojson", data: routes, promoteId: "id" });
@@ -155,7 +179,11 @@
     bindMapEvents();
     renderChips();
     applyFilter();
-    map.once("idle", readHash); // Deep-Link erst anfliegen, wenn Gelände geladen ist
+    // Deep-Link erst anfliegen, wenn Gelände geladen ist – spätestens aber nach 4 s
+    let hashGelesen = false;
+    const leseHash = () => { if (!hashGelesen) { hashGelesen = true; readHash(); } };
+    map.once("idle", leseHash);
+    setTimeout(leseHash, 4000);
   });
 
   // ------------------------------------------------------------------ Filter & Suche
@@ -626,6 +654,17 @@
     if (d.ort) selectPoi(d.ort);
     if (d.weg) selectRoute(d.weg);
   });
+
+  function hinweis(t) {
+    if (document.getElementById("hinweis")) return;
+    const el = document.createElement("div");
+    el.id = "hinweis"; el.setAttribute("role", "alert"); el.textContent = t;
+    el.style.cssText = "position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 150px);transform:translateX(-50%);max-width:min(520px,calc(100% - 24px));background:#fff1d6;color:#5c3700;padding:12px 16px;border-radius:14px;z-index:30;font-size:14px;line-height:1.4;box-shadow:0 8px 28px rgba(16,24,40,.25)";
+    el.title = "Antippen zum Schließen"; el.style.cursor = "pointer";
+    el.onclick = () => el.remove();
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 12000);
+  }
 
   function toast(t) {
     const el = document.createElement("div");
