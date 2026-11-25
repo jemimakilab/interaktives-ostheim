@@ -82,28 +82,38 @@
   const abs = (u) => (/^https?:/.test(u) ? u : basis + u);
 
   // Ersatz-Stil, falls OpenFreeMap nicht erreichbar ist (Blocker, Ausfall): Luftbild Bayern + lokale Schriften
-  let ersatz = false;
+  let ersatz = false, stilGeladen = false, grundkarteWeg = false, kachelOk = false;
   function ersatzStil() {
-    if (ersatz || map.isStyleLoaded()) return;
+    if (ersatz || stilGeladen) return; // nur wenn der Stil selbst gar nicht lädt
     ersatz = true;
     map.setStyle({ version: 8, glyphs: abs("fonts/{fontstack}/{range}.pbf"), sources: {},
       layers: [{ id: "background", type: "background", paint: { "background-color": "#e8ecdf" } }] });
     hinweis("Die Standard-Kartenansicht ist gerade nicht erreichbar (evtl. durch einen Werbe-/Tracking-Blocker) – es wird das Luftbild angezeigt.");
   }
-  map.on("error", (e) => { if (!map.isStyleLoaded() && !e.sourceId) ersatzStil(); });
+  // Stil geladen, aber Grundkarten-Kacheln blockiert (z. B. uBlock / strenger Tracking-Schutz in Firefox):
+  // eigene Ebenen bleiben, nur der Hintergrund wird durch das Luftbild ersetzt
+  function grundkarteAusgefallen() {
+    if (grundkarteWeg || ersatz) return;
+    grundkarteWeg = true;
+    for (const l of map.getStyle()?.layers || []) if (l.source === "openmaptiles") map.setLayoutProperty(l.id, "visibility", "none");
+    if (map.getLayer("luftbild")) { map.setLayoutProperty("luftbild", "visibility", "visible"); state.luftbild = true; $("#btn-luftbild").setAttribute("aria-pressed", true); }
+    hinweis("Die Standard-Kartenansicht wird in diesem Browser blockiert (z. B. durch uBlock oder strengen Tracking-Schutz) – es wird das Luftbild angezeigt.");
+  }
+  const istGrundkarte = (e) => e.sourceId === "openmaptiles" || /openfreemap/.test(String(e.error?.url || e.error?.message || ""));
+  map.on("error", (e) => {
+    if (!stilGeladen && !e.sourceId && !istGrundkarte(e)) return ersatzStil();
+    if (!stilGeladen && /styles\//.test(String(e.error?.url || e.error?.message || ""))) return ersatzStil();
+    if (istGrundkarte(e) && !kachelOk) grundkarteAusgefallen();
+  });
   setTimeout(ersatzStil, 8000);
 
-  // Kachelfehler der Grundkarte erkennen (z. B. Werbe-/Tracking-Blocker) und Hinweis zeigen
-  let kachelFehler = 0, kachelOk = false;
+  // Kommen nach 10 s immer noch keine Grundkarten-Kacheln an → ebenfalls auf Luftbild umschalten
   map.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) kachelOk = true; });
-  map.on("error", (e) => {
-    if (kachelOk || !(e.sourceId === "openmaptiles" || /openfreemap/.test(e.error?.url || e.error?.message || ""))) return;
-    if (!ersatz && ++kachelFehler === 3) hinweis("Der Kartenhintergrund konnte nicht geladen werden. Vermutlich blockiert ein Werbe- oder Tracking-Blocker „tiles.openfreemap.org“ – bitte für diese Seite deaktivieren.");
-  });
-  setTimeout(() => { if (!ersatz && !kachelOk && !map.loaded()) hinweis("Der Kartenhintergrund lädt nicht. Bitte Internetverbindung prüfen oder Werbe-/Tracking-Blocker für diese Seite deaktivieren."); }, 12000);
+  setTimeout(() => { if (stilGeladen && !kachelOk) grundkarteAusgefallen(); }, 10000);
 
   // Aufbau schon nach dem Laden des Stils – nicht erst, wenn alle Kacheln da sind (sonst bleibt bei blockierten Kacheln alles leer)
   map.once("style.load", async () => {
+    stilGeladen = true;
     const [pois, routes, inhalte] = await daten;
     state.pois = pois.features;
     state.routes = routes.features;
@@ -124,7 +134,7 @@
     // Luftbild Bayern
     map.addSource("luftbild", { type: "raster", tiles: C.luftbild.tiles, tileSize: 256, attribution: C.luftbild.attribution });
     map.addLayer({ id: "luftbild", type: "raster", source: "luftbild", layout: { visibility: ersatz ? "visible" : "none" } }, firstSymbol);
-    if (ersatz) { state.luftbild = true; $("#btn-luftbild").setAttribute("aria-pressed", true); }
+    if (ersatz || grundkarteWeg) { map.setLayoutProperty("luftbild", "visibility", "visible"); state.luftbild = true; $("#btn-luftbild").setAttribute("aria-pressed", true); }
 
     // Wege
     map.addSource("routes", { type: "geojson", data: routes, promoteId: "id" });
