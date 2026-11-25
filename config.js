@@ -54,7 +54,7 @@ window.KARTE_CONFIG = {
     "Camping/Wohnmobil":   { label: "Camping",      icon: "🚐", farbe: "#005d5d" },
     "Übernachtung":        { label: "Übernachten",  icon: "🛏️", farbe: "#9f1853" }
   },
-  startLuftbild: true, // Luftbild als Startansicht (false = Straßenkarte)
+  startLuftbild: false, // true = Luftbild als Startansicht (lädt dann beim Öffnen von geoservices.bayern.de); false = Straßenkarte, Luftbild nur per Knopf
   // Beim Start ausgeblendete Kategorien (über die Filterleiste einblendbar)
   startAusgeblendet: ["Öffentlich", "Praktisches"]
 };
