@@ -29,7 +29,8 @@
     pois: [], routes: [], inhalte: {},
     aktiv: new Set(startKat), wege: !params.get("kat"),
     suche: "", tab: "orte", auswahl: null,
-    is3d: !params.get("flach") && !reduceMotion, luftbild: false, tour: null,
+    // Start in 2D: läuft auf jedem Gerät/Browser. 3D-Gelände nur auf Knopfdruck (oder mit ?3d=1)
+    is3d: !!params.get("3d") && !reduceMotion, luftbild: false, tour: null,
   };
 
   // ------------------------------------------------------------------ Karte
@@ -514,9 +515,12 @@
   function setTerrain(on) {
     state.is3d = on;
     $("#btn-3d").setAttribute("aria-pressed", on);
-    map.setTerrain(on ? { source: "dem", exaggeration: C.gelaende.ueberhoehung } : null);
+    try { map.setTerrain(on ? { source: "dem", exaggeration: C.gelaende.ueberhoehung } : null); }
+    catch (err) { console.warn("3D-Gelände nicht verfügbar", err); state.is3d = false; $("#btn-3d").setAttribute("aria-pressed", false); }
     if (map.getLayer("building-3d")) map.setLayoutProperty("building-3d", "visibility", on ? "visible" : "none");
   }
+  // Grafikkarte verliert den Kontext (z. B. bei 3D-Überlastung) → zurück auf 2D
+  map.on("webglcontextlost", () => { if (state.is3d) { stopTour(); setTerrain(false); toast("3D wurde abgeschaltet"); } });
   $("#btn-3d").onclick = () => {
     setTerrain(!state.is3d);
     map.easeTo({ pitch: state.is3d ? 60 : 0, bearing: state.is3d ? map.getBearing() || -20 : 0, duration: 1000 });
