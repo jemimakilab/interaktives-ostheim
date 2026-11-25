@@ -19,8 +19,10 @@
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   if (params.get("embed")) document.body.classList.add("embed");
-  // Bearbeitungsmodus (?bearbeiten=1): Punkte verschieben und Korrekturen als Datei herunterladen
-  const bearbeiten = !!params.get("bearbeiten");
+  // Bearbeitungsmodus: nur lokal auf dem eigenen PC (daten/bearbeiten.py → http://localhost:8800),
+  // auf der Live-Seite gibt es ihn nicht. Verschobene Punkte werden direkt in data/korrekturen.json gespeichert.
+  const lokal = ["localhost", "127.0.0.1"].includes(location.hostname);
+  const bearbeiten = lokal && (location.port === "8800" || !!params.get("bearbeiten"));
   $("#titel").textContent = C.titel;
   $("#untertitel").textContent = C.untertitel;
   document.title = C.titel;
@@ -78,7 +80,7 @@
     fetch("data/pois.geojson").then((r) => r.json()),
     fetch("data/routes.geojson").then((r) => r.json()),
     fetch("data/inhalte.json").then((r) => r.json()).catch(() => ({})),
-    fetch("data/korrekturen.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    fetch("data/korrekturen.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
   ]);
 
   // Marker-Bild je Kategorie (Kreis + Emoji), per Canvas erzeugt
@@ -136,7 +138,7 @@
     state.pois = pois.features;
     // Handkorrigierte Positionen (data/korrekturen.json) und – im Bearbeitungsmodus – noch nicht gespeicherte eigene
     state.korrekturen = {};
-    for (const [id, c] of Object.entries({ ...korrekturen, ...(bearbeiten ? lokaleKorrekturen() : {}) }))
+    for (const [id, c] of Object.entries(korrekturen))
       if (Array.isArray(c) && c.length === 2) state.korrekturen[id] = c;
     for (const f of state.pois) if (state.korrekturen[f.id]) { f.geometry.coordinates = state.korrekturen[f.id]; f.properties.lage = ""; }
     if (bearbeiten) bearbeitenStarten();
@@ -361,12 +363,19 @@
       ${bilder.length > 1 ? `<span class="count">${bilder.length} Bilder</span>` : ""}</div>`;
   }
 
-  // ------------------------------------------------------------------ Bearbeitungsmodus
-  const LS_KEY = "ostheim-korrekturen";
-  function lokaleKorrekturen() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } }
-  function lokalSpeichern(id, c) {
-    const k = lokaleKorrekturen(); k[id] = c;
-    try { localStorage.setItem(LS_KEY, JSON.stringify(k)); } catch { /* Browser ohne Speicher: bleibt bis zum Neuladen */ }
+  // ------------------------------------------------------------------ Bearbeitungsmodus (nur lokal)
+  async function speichereKorrektur(id, pos) {
+    try {
+      const r = await fetch("api/korrektur", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, pos }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.fehler);
+      bannerAktualisieren(d.anzahl);
+      return true;
+    } catch (err) {
+      toast("Speichern fehlgeschlagen – läuft daten/bearbeiten.py?");
+      console.warn(err);
+      return false;
+    }
   }
   let schiebeMarker = null;
   function startVerschieben(f) {
@@ -378,42 +387,28 @@
     schiebeMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(f.geometry.coordinates).addTo(map);
     map.getSource("sel")?.setData({ type: "FeatureCollection", features: [] });
     toast("Punkt an die richtige Stelle ziehen");
-    schiebeMarker.on("dragend", () => {
+    schiebeMarker.on("dragend", async () => {
       const ll = schiebeMarker.getLngLat();
       const c = [+ll.lng.toFixed(6), +ll.lat.toFixed(6)];
+      if (!(await speichereKorrektur(f.id, c))) return;
       f.geometry.coordinates = c;
       f.properties.lage = "";
       state.korrekturen[f.id] = c;
-      lokalSpeichern(f.id, c);
       applyFilter();
-      bannerAktualisieren();
-      toast("Neue Position gemerkt ✓");
+      toast("Gespeichert ✓");
     });
   }
   function stopVerschieben() { schiebeMarker?.remove(); schiebeMarker = null; }
-  function bannerAktualisieren() {
-    const n = Object.keys(lokaleKorrekturen()).length;
-    $("#edit-anzahl").textContent = n ? `${n} neue Korrektur${n === 1 ? "" : "en"}` : "noch keine neuen Korrekturen";
+  function bannerAktualisieren(n = Object.keys(state.korrekturen).length) {
+    const el = $("#edit-anzahl");
+    if (el) el.textContent = `${n} korrigierte Position${n === 1 ? "" : "en"} gespeichert`;
   }
   function bearbeitenStarten() {
     const b = document.createElement("div");
     b.className = "edit-banner";
-    b.innerHTML = `<b>✏️ Bearbeiten</b><span id="edit-anzahl"></span>
-      <button id="edit-download">Korrekturen herunterladen</button><button id="edit-reset">Verwerfen</button>`;
+    b.innerHTML = `<b>✏️ Bearbeitungsmodus</b><span>Ort antippen → „Position ändern“ → Punkt ziehen. Wird automatisch gespeichert.</span><span id="edit-anzahl"></span>`;
     document.body.appendChild(b);
     bannerAktualisieren();
-    $("#edit-download").onclick = () => {
-      const daten = Object.fromEntries(Object.entries(state.korrekturen).sort(([a], [b]) => a.localeCompare(b)));
-      const url = URL.createObjectURL(new Blob([JSON.stringify(daten, null, 1)], { type: "application/json" }));
-      const a = Object.assign(document.createElement("a"), { href: url, download: "korrekturen.json" });
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-    };
-    $("#edit-reset").onclick = () => {
-      if (!confirm("Alle noch nicht gespeicherten Korrekturen verwerfen?")) return;
-      try { localStorage.removeItem(LS_KEY); } catch { /* egal */ }
-      location.reload();
-    };
   }
 
   function selectPoi(id, { fly = true } = {}) {
@@ -442,6 +437,7 @@
         ${extra.panorama?.src ? `<button class="action" data-pano>${icons.pano}360°</button>` : ""}
         <button class="action" data-share>${icons.share}Teilen</button>
         ${bearbeiten ? `<button class="action primary" data-verschieben>📍<br>Position ändern</button>` : ""}
+        ${bearbeiten && state.korrekturen[id] ? `<button class="action" data-zuruecksetzen>↩<br>Original-Position</button>` : ""}
       </div>
       <div class="facts">
         ${p.adresse ? `<div class="fact"><span class="k">📍</span><span>${esc(p.adresse)}${p.ort && p.ort !== "Ostheim" ? ", " + esc(p.ort) : ""}<br><small>97645 Ostheim v.d.Rhön</small></span></div>` : ""}
@@ -508,6 +504,10 @@
     if (pano) pano.onclick = () => openPano(extra.panorama);
     const schieben = body.querySelector("[data-verschieben]");
     if (schieben) schieben.onclick = () => startVerschieben(f);
+    const zurueck = body.querySelector("[data-zuruecksetzen]");
+    if (zurueck) zurueck.onclick = async () => {
+      if (await speichereKorrektur(f.id, null)) { toast("Zurückgesetzt – Seite lädt neu"); setTimeout(() => location.reload(), 900); }
+    };
     const fit = body.querySelector("[data-fit]");
     if (fit) fit.onclick = () => fitRoute(f);
     body.querySelectorAll("[data-bild]").forEach((img) => (img.onclick = () => {

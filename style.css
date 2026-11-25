@@ -215,8 +215,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: calc(100% - 24px);
   background: #fff1d6; color: #5c3700; padding: 10px 12px; border-radius: 14px; box-shadow: var(--shadow); font-size: 14px;
 }
-.edit-banner button { border: 0; border-radius: 10px; padding: 8px 12px; font-weight: 700; background: #1f2a44; color: #fff; }
-.edit-banner #edit-reset { background: #fff; color: #5c3700; }
+#edit-anzahl { font-weight: 700; }
 @media (min-width: 900px) { .edit-banner { bottom: 60px; } }
 .schiebe-marker {
   width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 26px;
