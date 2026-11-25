@@ -30,7 +30,9 @@
     aktiv: new Set(startKat), wege: !params.get("kat"),
     suche: "", tab: "orte", auswahl: null,
     // Start in 2D: läuft auf jedem Gerät/Browser. 3D-Gelände nur auf Knopfdruck (oder mit ?3d=1)
-    is3d: !!params.get("3d") && !reduceMotion, luftbild: false, tour: null,
+    is3d: !!params.get("3d") && !reduceMotion, tour: null,
+    // Luftbild ist Startansicht (abschaltbar mit ?karte=1); Luftbild und 3D schließen sich gegenseitig aus
+    luftbild: C.startLuftbild !== false && !params.get("karte") && !params.get("3d"),
   };
 
   // ------------------------------------------------------------------ Karte
@@ -152,8 +154,9 @@
 
     // Luftbild Bayern
     map.addSource("luftbild", { type: "raster", tiles: C.luftbild.tiles, tileSize: 256, attribution: C.luftbild.attribution });
-    map.addLayer({ id: "luftbild", type: "raster", source: "luftbild", layout: { visibility: ersatz ? "visible" : "none" } }, firstSymbol);
-    if (ersatz || grundkarteWeg) { map.setLayoutProperty("luftbild", "visibility", "visible"); state.luftbild = true; $("#btn-luftbild").setAttribute("aria-pressed", true); }
+    map.addLayer({ id: "luftbild", type: "raster", source: "luftbild", layout: { visibility: "none" } }, firstSymbol);
+    if (ersatz || grundkarteWeg) state.luftbild = true;
+    setLuftbild(state.luftbild);
 
     // Wege
     map.addSource("routes", { type: "geojson", data: routes, promoteId: "id" });
@@ -560,14 +563,20 @@
   }
   // Grafikkarte verliert den Kontext (z. B. bei 3D-Überlastung) → zurück auf 2D
   map.on("webglcontextlost", () => { if (state.is3d) { stopTour(); setTerrain(false); toast("3D wurde abgeschaltet"); } });
+  function setLuftbild(on) {
+    state.luftbild = on;
+    $("#btn-luftbild").setAttribute("aria-pressed", on);
+    if (map.getLayer("luftbild")) map.setLayoutProperty("luftbild", "visibility", on ? "visible" : "none");
+  }
   $("#btn-3d").onclick = () => {
+    if (!state.is3d && state.luftbild) setLuftbild(false); // entweder Luftbild oder 3D
     setTerrain(!state.is3d);
     map.easeTo({ pitch: state.is3d ? 60 : 0, bearing: state.is3d ? map.getBearing() || -20 : 0, duration: 1000 });
   };
-  $("#btn-luftbild").onclick = (e) => {
-    state.luftbild = !state.luftbild;
-    e.currentTarget.setAttribute("aria-pressed", state.luftbild);
-    map.setLayoutProperty("luftbild", "visibility", state.luftbild ? "visible" : "none");
+  $("#btn-luftbild").onclick = () => {
+    const an = !state.luftbild;
+    if (an && state.is3d) { setTerrain(false); map.easeTo({ pitch: 0, bearing: 0, duration: 800 }); } // entweder Luftbild oder 3D
+    setLuftbild(an);
   };
   $("#btn-ort").onclick = () => geo.trigger();
   $("#btn-home").onclick = () => {
@@ -581,6 +590,7 @@
     const stops = state.pois.filter((f) => state.inhalte[f.id]?.highlight);
     if (!stops.length) return;
     const tour = (state.tour = { aktiv: true });
+    if (state.luftbild) setLuftbild(false);
     if (!state.is3d) setTerrain(true);
     $("#tour-banner").hidden = false;
     document.body.classList.add("touring");
